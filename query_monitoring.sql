@@ -33,6 +33,9 @@ CREATE OR REPLACE TABLE QUERY_HISTORY_HISTORY
     error_message            VARCHAR
 );
 
+COMMENT ON TABLE MONITORING.AGENT.QUERY_HISTORY_HISTORY IS
+    'Historical snapshots of the top 20 queries in the account via SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY. Populated by RUN_MONITORING_QUERIES()';
+
 CREATE OR REPLACE TABLE QUERY_INSIGHTS_HISTORY
 (
     id                       NUMBER AUTOINCREMENT PRIMARY KEY,
@@ -46,6 +49,9 @@ CREATE OR REPLACE TABLE QUERY_INSIGHTS_HISTORY
     suggestions              VARCHAR(4000),
     insight_topic            VARCHAR(100)
 );
+
+COMMENT ON TABLE MONITORING.AGENT.QUERY_INSIGHTS_HISTORY IS
+    'Historical snapshots of the query insights via SNOWFLAKE.ACCOUNT_USAGE.QUERY_INSIGHTS';
  
 CREATE OR REPLACE TABLE COST_SPIKES
 (
@@ -326,7 +332,7 @@ BEGIN
                 'SUCCESS' AS execution_status,
                 NULL::VARCHAR AS error_message             
             FROM
-                snowflake.account_usage.query_history
+                SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
             WHERE
                 start_time >= current_date - 7 AND end_time < current_date
                 AND execution_status = 'SUCCESS'
@@ -363,7 +369,7 @@ BEGIN
                 'SUCCESS' AS execution_status,
                 NULL::VARCHAR AS error_message      
             FROM
-                snowflake.account_usage.query_history
+                SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
             WHERE
                 start_time >= current_date - 7 AND end_time < current_date
                 AND execution_status = 'SUCCESS'
@@ -377,8 +383,8 @@ BEGIN
                 total_credits_used DESC
         )
         ORDER BY
-            CASE WHEN $sort_column = 'total_elapsed_time_s' THEN total_elapsed_time_s END DESC,
-            CASE WHEN $sort_column = 'total_credits_used'   THEN total_credits_used   END DESC;
+            CASE WHEN :sort_column = 'total_elapsed_time_s' THEN total_elapsed_time_s END DESC,
+            CASE WHEN :sort_column = 'total_credits_used'   THEN total_credits_used   END DESC
     );
   
     RETURN TABLE(res);
@@ -647,13 +653,15 @@ DECLARE
     v_prompt          VARCHAR DEFAULT '';
     v_ai_analysis     VARCHAR DEFAULT '';
     v_markdown_table  VARCHAR DEFAULT '';
-    v_prompt_preamble VARCHAR DEFAULT 'You are an expert Snowflake database developer. You focus on practical advice that will make big improvements in performance and cost savings. Do not waste time on pleasantries. You are working with other very senior database developers who understand Snowflake deeply, so be concise and specific with your recommendations. Do not offer follow-up options: the user can only contact you once, so include all necessary information and scripts in your reply. Present your findings in a 3 column table with headings, "Issue", "Recommendation", "Estimated Impact", with a separate table for the Implementation Plan. Render your output as HTML tables with inline CSS styling for Microsoft Outlook. Ensure your answers are factual and that the HTML output is well formed.\n';
+    v_prompt_preamble VARCHAR DEFAULT 'You are an expert Snowflake database developer. You focus on practical advice that will make big improvements in performance and cost savings. Do not waste time on pleasantries. You are working with other very senior database developers who understand Snowflake deeply, so be concise and specific with your recommendations. Do not offer follow-up options: the user can only contact you once, so include all necessary information and scripts in your reply. Present your findings in a 3 column table with headings, "Issue", "Recommendation", "Estimated Impact", with a separate table for the Implementation Plan. Render your output as HTML tables with inline CSS styling for Microsoft Outlook. Ensure your answers are factual and that the HTML output is well formed. Today''s date is ' || TO_VARCHAR(CURRENT_DATE(), 'YYYY-MM-DD') || '.\n';
 
 BEGIN
     -- Already exists?
     IF (EXISTS (SELECT 1 FROM AGENT.AGENT_FINDINGS WHERE RUN_TIMESTAMP = :run_timestamp)) THEN
         RETURN 'Already sent for timestamp ' || :run_timestamp;
     END IF;
+    
+    --:v_prompt_preamble := :v_prompt_preamble || 'Today''s date is ' || TO_VARCHAR(CURRENT_DATE(), 'YYYY-MM-DD') || '.\n';
  
     CALL MONITORING.AGENT.markdown_table('SELECT TOP 10 * FROM TABLE(MONITORING.AGENT.GetLatestQueryHistory()) WHERE EXECUTION_STATUS = ''SUCCESS'' ORDER BY TOTAL_ELAPSED_TIME_S DESC') INTO :v_markdown_table;
  
@@ -789,37 +797,4 @@ AS
 ALTER TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK RESUME;
  
 ----------------------------------------------------------------
-
--- Example use:
- 
-CALL MONITORING.AGENT.QUERY_MONITORING();
-
--- OR
-
-EXECUTE TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK;
-
-SELECT MAX(run_timestamp) FROM MONITORING.AGENT.QUERY_INSIGHTS_HISTORY;
-
-SELECT * FROM MONITORING.AGENT.AGENT_FINDINGS ORDER BY run_timestamp desc;
-SELECT * FROM MONITORING.AGENT.QUERY_INSIGHTS_HISTORY ORDER BY run_timestamp desc;
-SELECT * FROM MONITORING.AGENT.QUERY_HISTORY_HISTORY ORDER BY run_timestamp desc;
-SELECT * FROM MONITORING.AGENT.COST_SPIKES ORDER BY run_timestamp desc
- 
-EXECUTE IMMEDIATE
-$$
-DECLARE
-    last_run TIMESTAMP_NTZ;
-BEGIN
-
-    CALL MONITORING.AGENT.RUN_MONITORING_QUERIES(7);
-
-    SELECT MAX(run_timestamp) INTO :last_run FROM MONITORING.AGENT.QUERY_INSIGHTS_HISTORY;
-
-    CALL MONITORING.AGENT.SEND_FINDINGS_TO_CORTEX(:last_run, 'claude-3-7-sonnet');
-
-    CALL MONITORING.AGENT.SEND_FINDINGS_EMAIL(:last_run);
-
-END;
-$$;
-
 -------------------------------------------------------------------
