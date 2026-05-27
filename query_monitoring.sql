@@ -51,8 +51,8 @@ CREATE OR REPLACE TABLE QUERY_INSIGHTS_HISTORY
 );
 
 COMMENT ON TABLE MONITORING.AGENT.QUERY_INSIGHTS_HISTORY IS
-    'Historical snapshots of the query insights via SNOWFLAKE.ACCOUNT_USAGE.QUERY_INSIGHTS';
- 
+    'Historical snapshots of the top 20 queries in the account via SNOWFLAKE.ACCOUNT_USAGE.QUERY_INSIGHTS. Populated by RUN_MONITORING_QUERIES()';
+
 CREATE OR REPLACE TABLE COST_SPIKES
 (
     id                          NUMBER AUTOINCREMENT PRIMARY KEY,
@@ -63,6 +63,9 @@ CREATE OR REPLACE TABLE COST_SPIKES
     avg_daily_credits_last_week NUMBER(10,2),
     spike_ratio                 NUMBER(10,2)
 );
+
+COMMENT ON TABLE MONITORING.AGENT.COST_SPIKES IS
+    'Historical snapshots of any warehouse cost spikes via SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY. Populated by WAREHOUSE_COST_SPIKES()';
  
 CREATE OR REPLACE TABLE AGENT_FINDINGS
 (
@@ -97,7 +100,7 @@ $$;
 
 -------------------------------------------------------------------
  
-CREATE OR REPLACE PROCEDURE warehouse_cost_spikes
+CREATE OR REPLACE PROCEDURE WAREHOUSE_COST_SPIKES
 (
     daily_credit_cost_threshold NUMBER DEFAULT 2, -- Only show warehouses exceeding this credit cost per day
     percent_increase_threshold  NUMBER DEFAULT 50 -- 50% increase = 1.5x, 100% increase = 2x etc.
@@ -187,6 +190,7 @@ import pandas as pd
 import tabulate
 import regex
 import sqlparse
+import html
  
 def df_to_outlook_html(df: pd.DataFrame) -> str:
     def td_style(header=False, zebra=False):
@@ -653,7 +657,7 @@ DECLARE
     v_prompt          VARCHAR DEFAULT '';
     v_ai_analysis     VARCHAR DEFAULT '';
     v_markdown_table  VARCHAR DEFAULT '';
-    v_prompt_preamble VARCHAR DEFAULT 'You are an expert Snowflake database developer. You focus on practical advice that will make big improvements in performance and cost savings. Do not waste time on pleasantries. You are working with other very senior database developers who understand Snowflake deeply, so be concise and specific with your recommendations. Do not offer follow-up options: the user can only contact you once, so include all necessary information and scripts in your reply. Present your findings in a 3 column table with headings, "Issue", "Recommendation", "Estimated Impact", with a separate table for the Implementation Plan. Render your output as HTML tables with inline CSS styling for Microsoft Outlook. Ensure your answers are factual and that the HTML output is well formed. Today''s date is ' || TO_VARCHAR(CURRENT_DATE(), 'YYYY-MM-DD') || '.\n';
+    v_prompt_preamble VARCHAR DEFAULT 'You are an expert Snowflake database developer. You focus on practical advice that will make big improvements in performance and cost savings. Do not waste time on pleasantries. You are working with senior database developers who understand Snowflake deeply, so be concise and specific with your recommendations. Do not offer follow-up options: the user can only contact you once, so include all necessary information and scripts in your reply. Present your findings in a 3 column table with headings, "Issue", "Recommendation", "Estimated Impact", with a separate table for the Implementation Plan. Render your output as HTML tables with inline CSS styling for Microsoft Outlook. Ensure your answers are factual and that the HTML output is well formed. Today''s date is ' || TO_VARCHAR(CURRENT_DATE(), 'YYYY-MM-DD') || '.\n';
 
 BEGIN
     -- Already exists?
