@@ -17,7 +17,7 @@ When using Snowflake Cortex, your data never leaves Snowflake's security boundar
 
 We can collect the most expensive queries (by cost and by duration) from the [SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/query_history) view, and from [SNOWFLAKE.ACCOUNT_USAGE.QUERY_INSIGHTS](https://docs.snowflake.com/en/sql-reference/account-usage/query_insights) Additionally,  we gather warehouse cost spikes from view [SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/warehouse_metering_history).
 
-The least permissions to query these are **GOVERNANCE_VIEWER** for query history and **USAGE_VIEWER** for metering history.
+The role permissions to query these are **GOVERNANCE_VIEWER** for query history and **USAGE_VIEWER** for metering history.
 
 ## Steps to create:
 
