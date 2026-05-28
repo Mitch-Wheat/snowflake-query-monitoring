@@ -1,5 +1,7 @@
 # Snowflake LLM Assisted Monitoring
 
+This project leverages Snowflake's hosted LLM models to look for and analyze expensive or poorly performing queries. It sends an HTML formatted email to an email address or an email distribution list (preferrable).
+
 If you don't have a Snowflake DBA or you're a Snowflake DBA that wants to get some assistence across all the databases in your account, you can leverage Snowflake's built-in LLM functionality.
 
 Things often fall through the cracks because it's no one's job to constantly monitor and improve the query workload. This can result in higher than necessary compute costs and slow queries. 
@@ -10,8 +12,6 @@ In Snowflake, this might fall into one or more categories:
 2. Queries that use inefficient anti-patterns (such as NOT IN, or accidental JOIN explosions)
 3. Inefficient data loading patterns and long running ELT/ETL processes
 4. Poorly clustered tables and insufficient partition pruning (see [Snowflake: Clustered Tables](https://mitchwheat.com/2026/04/03/snowflake-clustered-tables/))
-
-This project leverages Snowflake's hosted LLM models to look for and analyze expensive or poorly performing queries.
 
 When using Snowflake Cortex, your data never leaves Snowflake's security boundaries. Customer data is strictly isolated within your account boundary and is never used to train or fine-tune third-party large language models (LLMs).  See [Snowflake AI Trust and Safety FAQs](https://www.snowflake.com/en/legal/compliance/snowflake-ai-trust-and-safety/) That said, you should check with the relevant people at your company to make sure it's allowed.
 
