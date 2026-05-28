@@ -31,5 +31,31 @@ Then set up a Snowflake email notification integration to use that distribution 
         ENABLED = TRUE
         ALLOWED_RECIPIENTS = ('snowflake.monitoring@mycompany.com');
 ```
-        
 
+By default, the script uses the following database and schema:
+
+```SQL
+	CREATE DATABASE IF NOT EXISTS MONITORING;
+	CREATE SCHEMA IF NOT EXISTS MONITORING.AGENT;
+
+	USE DATABASE MONITORING;
+	USE SCHEMA AGENT;
+```
+
+Change these to suit your environment.
+   
+Then run in the query_monitoring.sql script to create tables and stored procedures.
+
+If you want to schedule to run periodically:
+
+```SQL
+	CREATE OR REPLACE TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK
+	    WAREHOUSE = PLATFORM_WH
+	    SCHEDULE  = 'USING CRON 0 8 * * 1 Australia/Perth'  -- Runs every Monday at 8am AWST
+	    COMMENT   = 'Runs the query monitoring agent weekly'
+	AS
+	    CALL MONITORING.AGENT.QUERY_MONITORING();
+	 
+	-- Activate the task
+	ALTER TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK RESUME;
+```
