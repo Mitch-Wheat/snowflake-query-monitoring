@@ -490,7 +490,7 @@ BEGIN
 
     SELECT MAX(run_timestamp) INTO :v_last_run FROM AGENT.QUERY_INSIGHTS_HISTORY;
 
-    CALL SEND_FINDINGS_TO_CORTEX(:v_last_run, 'claude-3-7-sonnet');
+    CALL SEND_FINDINGS_TO_CORTEX(:v_last_run, 'claude-opus-4-7');
 
     CALL SEND_FINDINGS_EMAIL(:v_last_run);
  
@@ -640,13 +640,14 @@ $$;
  
 -- https://docs.snowflake.com/en/guides-overview-ai-features
 --
--- In my testing, 'claude-3-7-sonnet' performed very well. It's more expensive than the default model 'llama3.1-70b'
+-- In my testing, the claude-sonnet models performed well (although more expensive than some of the other models).
+-- 'claude-opus-4-7' is one of the more capable models
 -- You should experiment with different models to see which suits your needs best.
 --
 CREATE OR REPLACE PROCEDURE SEND_FINDINGS_TO_CORTEX
 (
     run_timestamp   TIMESTAMP_NTZ,
-    ai_model        VARCHAR(100) DEFAULT 'llama3.1-70b'
+    ai_model        VARCHAR(100) DEFAULT 'claude-opus-4-7'
 )
 RETURNS VARCHAR
 LANGUAGE SQL
@@ -657,22 +658,27 @@ DECLARE
     v_prompt          VARCHAR DEFAULT '';
     v_ai_analysis     VARCHAR DEFAULT '';
     v_markdown_table  VARCHAR DEFAULT '';
-    v_prompt_preamble VARCHAR DEFAULT 'You are an expert Snowflake database developer. You focus on practical advice that will make big improvements in performance and cost savings. Do not waste time on pleasantries. You are working with senior database developers who understand Snowflake deeply, so be concise and specific with your recommendations. Do not offer follow-up options: the user can only contact you once, so include all necessary information and scripts in your reply. Present your findings in a 3 column table with headings, "Issue", "Recommendation", "Estimated Impact", with a separate table for the Implementation Plan. Render your output as HTML tables with inline CSS styling for Microsoft Outlook. Ensure your answers are factual and that the HTML output is well formed. Today''s date is ' || TO_VARCHAR(CURRENT_DATE(), 'YYYY-MM-DD') || '.\n';
-
+    v_prompt_preamble VARCHAR DEFAULT 'You are an expert Snowflake database developer. You focus on practical advice that will make big improvements in performance and cost savings. Do not waste time on pleasantries. You are working with other senior database developers who understand Snowflake deeply, so be concise and specific with your recommendations. Do not offer follow-up options: the user can only contact you once, so include all necessary information and scripts in your reply. Present your findings in a 3 column table with headings, "Issue", "Recommendation", "Estimated Impact", with a separate table for the Implementation Plan. Render your output as HTML tables with inline CSS styling for Microsoft Outlook. Ensure your answers are factual and that the HTML output is well formed. Today''s date is ' || TO_VARCHAR(CURRENT_DATE(), 'YYYY-MM-DD') || '.\n';
+ 
 BEGIN
     -- Already exists?
     IF (EXISTS (SELECT 1 FROM AGENT.AGENT_FINDINGS WHERE RUN_TIMESTAMP = :run_timestamp)) THEN
         RETURN 'Already sent for timestamp ' || :run_timestamp;
     END IF;
-    
-    --:v_prompt_preamble := :v_prompt_preamble || 'Today''s date is ' || TO_VARCHAR(CURRENT_DATE(), 'YYYY-MM-DD') || '.\n';
  
-    CALL MONITORING.AGENT.markdown_table('SELECT TOP 10 * FROM TABLE(MONITORING.AGENT.GetLatestQueryHistory()) WHERE EXECUTION_STATUS = ''SUCCESS'' ORDER BY TOTAL_ELAPSED_TIME_S DESC') INTO :v_markdown_table;
+    CALL GOVERNOR.AGENT.markdown_table('SELECT TOP 10 * FROM TABLE(GOVERNOR.AGENT.GetLatestQueryHistory()) WHERE EXECUTION_STATUS = ''SUCCESS'' ORDER BY TOTAL_ELAPSED_TIME_S DESC') INTO :v_markdown_table;
  
-    v_prompt := :v_prompt_preamble || 'Here is a table of the top ten query history by elapsed time for the last 7 days, what is your advice?:\n' || :v_markdown_table;    
+    v_markdown_table := REGEXP_REPLACE(:v_markdown_table, ' {2,}', ' ');
+
+    v_prompt := :v_prompt_preamble || ' Here is a table of the top ten query history by elapsed time for the last 7 days, what is your advice?:\n' || :v_markdown_table; 
+ 
     SELECT SNOWFLAKE.CORTEX.AI_COMPLETE(:ai_model, :v_prompt) INTO :v_ai_analysis;
  
-    INSERT INTO MONITORING.AGENT.AGENT_FINDINGS
+    IF (:v_ai_analysis IS NULL) THEN
+        RETURN 'AI_COMPLETE() returned NULL. Does the model used exist?';
+    END IF;
+
+    INSERT INTO GOVERNOR.AGENT.AGENT_FINDINGS
     (RUN_TIMESTAMP, CATEGORY, PROMPT, AI_MODEL, AI_ANALYSIS)
     SELECT
         :run_timestamp,
@@ -680,27 +686,34 @@ BEGIN
         :v_prompt,
         :ai_model,
         :v_ai_analysis;
-        
-    CALL MONITORING.AGENT.markdown_table('SELECT TOP 10 * FROM AGENT.QUERY_INSIGHTS_HISTORY WHERE run_timestamp = \'' || :run_timestamp || '\'' ) 
-    INTO :v_markdown_table;
 
-    v_prompt := :v_prompt_preamble || 'Here is a table of Snowflake''s top ten query insights for the last 7 days, what is your advice?:\n' || :v_markdown_table;                
-    SELECT SNOWFLAKE.CORTEX.AI_COMPLETE(:ai_model, :v_prompt) INTO :v_ai_analysis;
+    CALL GOVERNOR.AGENT.markdown_table('SELECT TOP 10 * FROM AGENT.QUERY_INSIGHTS_HISTORY WHERE run_timestamp = \'' || :run_timestamp || '\'' )
+    INTO :v_markdown_table;
  
-    INSERT INTO MONITORING.AGENT.AGENT_FINDINGS
+    v_markdown_table := REGEXP_REPLACE(:v_markdown_table, ' {2,}', ' ');
+ 
+    v_prompt := :v_prompt_preamble || 'Here is a table of Snowflake''s top ten query insights for the last 7 days, what is your advice?:\n' || :v_markdown_table;
+   
+    SELECT SNOWFLAKE.CORTEX.AI_COMPLETE(:ai_model, :v_prompt) INTO :v_ai_analysis;
+
+    INSERT INTO GOVERNOR.AGENT.AGENT_FINDINGS
     (RUN_TIMESTAMP, CATEGORY, PROMPT, AI_MODEL, AI_ANALYSIS)
     SELECT
         :run_timestamp,
         'QUERY_INSIGHTS',
         :v_prompt,
         :ai_model,
-        :v_ai_analysis;        
-        
+        :v_ai_analysis;
+ 
+    RETURN
+        'Success. run_timestamp: ' || :run_timestamp;
+       
 EXCEPTION
     WHEN OTHER THEN
-        RETURN 'FAILED | ' || SQLERRM;          
-
+        RETURN 'FAILED | ' || SQLERRM;         
+ 
 END;
+
 $$;
  
 -------------------------------------------------------------------
