@@ -1,4 +1,4 @@
-# Snowflake Monitoring
+# Snowflake LLM Assisted Monitoring
 
 If you don't have a Snowflake DBA or you're a Snowflake DBA that wants to get some assistence across all the databases in your account, you can leverage Snowflake's built-in LLM functionality.
 
