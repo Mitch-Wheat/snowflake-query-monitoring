@@ -46,6 +46,43 @@ Change these to suit your environment.
    
 Then run in the query_monitoring.sql script to create tables and stored procedures.
 
+This is the entry point:
+
+```SQL
+CREATE OR REPLACE PROCEDURE QUERY_MONITORING
+(
+    interval_days INT DEFAULT 7
+)
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+    v_last_run TIMESTAMP_NTZ;
+BEGIN
+    ALTER SESSION SET QUERY_TAG = 'QUERY_MONITORING';
+   
+    CALL RUN_MONITORING_QUERIES(:interval_days);
+
+    SELECT MAX(run_timestamp) INTO :v_last_run FROM AGENT.QUERY_INSIGHTS_HISTORY;
+
+    CALL SEND_FINDINGS_TO_CORTEX(:v_last_run, 'claude-opus-4-7');
+
+    CALL SEND_FINDINGS_EMAIL(:v_last_run);
+ 
+    ALTER SESSION UNSET QUERY_TAG;
+    
+    RETURN
+        'SUCCESS' || ' | run_timestamp=' || :v_last_run;    
+    
+EXCEPTION
+    WHEN OTHER THEN
+        RETURN 'FAILED | ' || SQLERRM;    
+END;
+$$;
+```
+
 If you want to schedule to run periodically:
 
 ```SQL
