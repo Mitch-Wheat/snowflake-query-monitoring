@@ -96,3 +96,20 @@ If you want to schedule to run periodically:
 	-- Activate the task
 	ALTER TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK RESUME;
 ```
+
+## Things to be aware of:
+
+1. Models get superceeded and deprecated 
+2. Cost of different models and overall LLM token spend
+3. Legal: make sure you are allowed to send query text to the LLM end point
+4. LLM advice quality may vary. Experiment with various prompts and models to see what works best in your environment.
+
+
+To determine if you have access and to find exactly which models are available for your specific region, you can run the following query:
+```SQL
+    SHOW CORTEX AI MODELS;
+```
+
+Models supported:
+https://docs.snowflake.com/en/user-guide/snowflake-cortex/aisql-regional-availability
+
