@@ -10,6 +10,8 @@ CREATE NOTIFICATION INTEGRATION IF NOT EXISTS MONITORING_EMAIL_NOTIFICATION_INTE
     TYPE = EMAIL
     ENABLED = TRUE
     ALLOWED_RECIPIENTS = ('snowflake.monitoring@mycompany.com');
+    
+----------------------------------------------------------------
 
 CREATE OR REPLACE TABLE QUERY_HISTORY_HISTORY
 (
@@ -77,6 +79,9 @@ CREATE OR REPLACE TABLE AGENT_FINDINGS
     AI_ANALYSIS      VARCHAR
 );
 
+COMMENT ON TABLE MONITORING.AGENT.AGENT_FINDINGS IS
+    'Stores the prompt, model and LLM response. Populated by SEND_FINDINGS_TO_CORTEX()';
+    
 ----------------------------------------------------------------
 
 CREATE OR REPLACE PROCEDURE GET_SESSION_TIMEZONE()
@@ -641,8 +646,11 @@ $$;
 -- https://docs.snowflake.com/en/guides-overview-ai-features
 --
 -- In my testing, the claude-sonnet models performed well (although more expensive than some of the other models).
--- 'claude-opus-4-7' is one of the more capable models
+-- 'claude-opus-4-7' is one of the more capable models.
 -- You should experiment with different models to see which suits your needs best.
+--
+-- To show the models available in your region:
+--    SHOW CORTEX AI MODELS;
 --
 CREATE OR REPLACE PROCEDURE SEND_FINDINGS_TO_CORTEX
 (
@@ -798,20 +806,3 @@ EXCEPTION
     
 END;
 $$;
- 
-----------------------------------------------------------------
--- Weekly Task
-----------------------------------------------------------------
- 
-CREATE OR REPLACE TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK
-    WAREHOUSE = PLATFORM_WH
-    SCHEDULE  = 'USING CRON 0 8 * * 1 Australia/Perth'  -- Runs every Monday at 8am AWST
-    COMMENT   = 'Runs the query monitoring agent weekly'
-AS
-    CALL MONITORING.AGENT.QUERY_MONITORING();
- 
--- Activate the task
-ALTER TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK RESUME;
- 
-----------------------------------------------------------------
--------------------------------------------------------------------
