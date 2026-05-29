@@ -12,7 +12,7 @@ In Snowflake, this might fall into one or more categories (non-exhaustive):
 2. Queries that use inefficient anti-patterns (such as NOT IN, or accidental JOIN explosions)
 3. Inefficient data loading patterns and long running ELT/ETL processes
 4. Poorly clustered tables and insufficient partition pruning (see [Snowflake: Clustered Tables](https://mitchwheat.com/2026/04/03/snowflake-clustered-tables/))
-5. etc..
+5. etc.
 
 **When using Snowflake Cortex, your data never leaves Snowflake's security boundaries. Customer data is strictly isolated within your account boundary and is never used to train or fine-tune third-party large language models (LLMs).**  See [Snowflake AI Trust and Safety FAQs](https://www.snowflake.com/en/legal/compliance/snowflake-ai-trust-and-safety/) That said, you should check with the relevant people at your company to make sure it's allowed.
 
