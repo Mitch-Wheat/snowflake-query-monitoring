@@ -16,7 +16,7 @@ In Snowflake, this might fall into one or more categories (non-exhaustive):
 
 **When using Snowflake Cortex, your data never leaves Snowflake's security boundaries. Customer data is strictly isolated within your account boundary and is never used to train or fine-tune third-party large language models (LLMs).**  See [Snowflake AI Trust and Safety FAQs](https://www.snowflake.com/en/legal/compliance/snowflake-ai-trust-and-safety/) That said, you should check with the relevant people at your company to make sure it's allowed.
 
-We can collect the most expensive queries (by cost and by duration) from the [SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/query_history) view, and from [SNOWFLAKE.ACCOUNT_USAGE.QUERY_INSIGHTS](https://docs.snowflake.com/en/sql-reference/account-usage/query_insights) Additionally,  we gather warehouse cost spikes from view [SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/warehouse_metering_history).
+We can collect the most expensive queries (by cost and by duration) from the [SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/query_history) view, and data from [SNOWFLAKE.ACCOUNT_USAGE.QUERY_INSIGHTS](https://docs.snowflake.com/en/sql-reference/account-usage/query_insights) Additionally, we gather any warehouse cost spikes from view [SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/warehouse_metering_history).
 
 The role permissions to query these are **GOVERNANCE_VIEWER** for query history and **USAGE_VIEWER** for metering history.
 
