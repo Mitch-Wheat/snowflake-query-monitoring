@@ -1,4 +1,4 @@
-# Snowflake LLM Assisted Monitoring
+# Snowflake LLM Assisted Query Monitoring
 
 This project leverages Snowflake's hosted LLM models to look for and analyze expensive or poorly performing queries. It sends an HTML formatted email to an email address or an email distribution list (preferrable).
 
