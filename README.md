@@ -20,7 +20,22 @@ We can collect the most expensive queries (by cost and by duration) from the [SN
 
 The role permissions to query these are **GOVERNANCE_VIEWER** for query history and **USAGE_VIEWER** for metering history.
 
-## Steps to create:
+## Architecture Overview
+
+<img width="770" height="1080" alt="image" src="https://github.com/user-attachments/assets/d6318c3b-b6bb-4f14-9090-1e3e134569a2" />
+
+- **No external infrastructure is required.** The whole system lives natively inside Snowflake: the DB, the scheduler (Task), the AI, and the email integration.
+
+- **Isolated database + schema.** MONITORING.AGENT is its own isolated database+schema that acts as a private audit trail. All four tables are append-only snapshots keyed by run_timestamp - so you get a full history of every monitoring run, not just the latest state. The AGENT_FINDINGS table stores the raw LLM prompt alongside the AI response, which gives you full reproducibility and lets you compare how findings change over time.
+
+- **The execution chain is sequential.** QUERY_MONITORING() is the sole entry point. It sets a QUERY_TAG = 'QUERY_MONITORING' at the start (so its own queries are excluded), then calls three procs in order: collect → analyze → email.
+
+- **The AI layer sits inside Snowflake entirely.** SEND_FINDINGS_TO_CORTEX() converts the query data into a Markdown table, crafts a detailed system prompt (senior DBA persona, output format specified as Outlook-compatible HTML tables, today's date injected), then calls SNOWFLAKE.CORTEX.AI_COMPLETE() — the model is claude-opus-4-7 by default but configurable. The AI output is stored in AGENT_FINDINGS before being consumed by the email proc.
+
+- **The email is built entirely in SQL.** SEND_FINDINGS_EMAIL() assembles a full HTML document then fires SYSTEM$SEND_EMAIL() via the notification integration. The Python to_html_table() helper (Snowpark, Python 3.13) renders Outlook-compatible zebra-striped tables with inline CSS.
+
+
+## Steps to Create
 
 If you don't already have one that's suitable, create an email distribution list in your email system e.g. 'snowflake.monitoring@mycompany.com'
 
@@ -47,44 +62,8 @@ Change these to suit your environment.
    
 Then run in the query_monitoring.sql script to create tables and stored procedures.
 
-This is the entry point:
 
-```SQL
-CREATE OR REPLACE PROCEDURE QUERY_MONITORING
-(
-    interval_days INT DEFAULT 7
-)
-RETURNS VARCHAR
-LANGUAGE SQL
-EXECUTE AS CALLER
-AS
-$$
-DECLARE
-    v_last_run TIMESTAMP_NTZ;
-BEGIN
-    ALTER SESSION SET QUERY_TAG = 'QUERY_MONITORING';
-   
-    CALL RUN_MONITORING_QUERIES(:interval_days);
-
-    SELECT MAX(run_timestamp) INTO :v_last_run FROM AGENT.QUERY_INSIGHTS_HISTORY;
-
-    CALL SEND_FINDINGS_TO_CORTEX(:v_last_run, 'claude-opus-4-7');
-
-    CALL SEND_FINDINGS_EMAIL(:v_last_run);
- 
-    ALTER SESSION UNSET QUERY_TAG;
-    
-    RETURN
-        'SUCCESS' || ' | run_timestamp=' || :v_last_run;    
-    
-EXCEPTION
-    WHEN OTHER THEN
-        RETURN 'FAILED | ' || SQLERRM;    
-END;
-$$;
-```
-
-If you want to schedule to run periodically:
+If you want to schedule to run periodically create a task:
 
 ```SQL
 	CREATE OR REPLACE TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK
@@ -99,14 +78,14 @@ If you want to schedule to run periodically:
 ```
 
 
-## Example Output:
+## Example Output
 
 The format of the HTML output in the email can vary based on the model used. Here's an example:
 
 <img width="940" height="652" alt="image" src="https://github.com/user-attachments/assets/92e45e68-c96b-4ef6-8a21-ac0b07540294" />
 
 
-## Things to be aware of:
+## Things to be Aware of
 
 1. Models get superceeded and deprecated 
 2. Cost of different models and overall LLM token spend
