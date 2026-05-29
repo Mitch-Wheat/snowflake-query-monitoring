@@ -6,14 +6,15 @@ If you don't have a Snowflake DBA or you're a Snowflake DBA that wants to get so
 
 Things often fall through the cracks because it's no one's job to constantly monitor and improve the query workload. This can result in higher than necessary compute costs and slow queries. 
 
-In Snowflake, this might fall into one or more categories:
+In Snowflake, this might fall into one or more categories (non-exhaustive):
 
 1. Poorly designed schema
 2. Queries that use inefficient anti-patterns (such as NOT IN, or accidental JOIN explosions)
 3. Inefficient data loading patterns and long running ELT/ETL processes
 4. Poorly clustered tables and insufficient partition pruning (see [Snowflake: Clustered Tables](https://mitchwheat.com/2026/04/03/snowflake-clustered-tables/))
+5. etc.
 
-When using Snowflake Cortex, your data never leaves Snowflake's security boundaries. Customer data is strictly isolated within your account boundary and is never used to train or fine-tune third-party large language models (LLMs).  See [Snowflake AI Trust and Safety FAQs](https://www.snowflake.com/en/legal/compliance/snowflake-ai-trust-and-safety/) That said, you should check with the relevant people at your company to make sure it's allowed.
+**When using Snowflake Cortex, your data never leaves Snowflake's security boundaries. Customer data is strictly isolated within your account boundary and is never used to train or fine-tune third-party large language models (LLMs).**  See [Snowflake AI Trust and Safety FAQs](https://www.snowflake.com/en/legal/compliance/snowflake-ai-trust-and-safety/) That said, you should check with the relevant people at your company to make sure it's allowed.
 
 We can collect the most expensive queries (by cost and by duration) from the [SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/query_history) view, and from [SNOWFLAKE.ACCOUNT_USAGE.QUERY_INSIGHTS](https://docs.snowflake.com/en/sql-reference/account-usage/query_insights) Additionally,  we gather warehouse cost spikes from view [SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY](https://docs.snowflake.com/en/sql-reference/account-usage/warehouse_metering_history).
 
@@ -96,6 +97,14 @@ If you want to schedule to run periodically:
 	-- Activate the task
 	ALTER TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK RESUME;
 ```
+
+
+## Example Output:
+
+The format of the HTML output in the email can vary based on the model used. Here's an example:
+
+<img width="940" height="652" alt="image" src="https://github.com/user-attachments/assets/92e45e68-c96b-4ef6-8a21-ac0b07540294" />
+
 
 ## Things to be aware of:
 
