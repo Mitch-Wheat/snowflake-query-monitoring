@@ -98,6 +98,14 @@ If you want to schedule to run periodically:
 	ALTER TASK MONITORING.AGENT.WEEKLY_MONITORING_TASK RESUME;
 ```
 
+
+## Example Output:
+
+The format of the HTML output in the email can vary based on the model used. Here's an example:
+
+<img width="940" height="652" alt="image" src="https://github.com/user-attachments/assets/92e45e68-c96b-4ef6-8a21-ac0b07540294" />
+
+
 ## Things to be aware of:
 
 1. Models get superceeded and deprecated 
