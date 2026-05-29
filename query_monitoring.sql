@@ -256,7 +256,7 @@ def to_html_table(session, queryOrQueryId = None):
 $$;
 
 -- Modified from here: https://stackoverflow.com/questions/72959274/how-to-generate-stackoverflow-table-markdown-from-snowflake 
-CREATE OR REPLACE PROCEDURE markdown_table(query_id VARCHAR)
+CREATE OR REPLACE PROCEDURE to_markdown_table(query_id VARCHAR)
 RETURNS VARCHAR
 LANGUAGE PYTHON
 RUNTIME_VERSION = '3.13'
@@ -674,7 +674,7 @@ BEGIN
         RETURN 'Already sent for timestamp ' || :run_timestamp;
     END IF;
  
-    CALL GOVERNOR.AGENT.markdown_table('SELECT TOP 10 * FROM TABLE(GOVERNOR.AGENT.GetLatestQueryHistory()) WHERE EXECUTION_STATUS = ''SUCCESS'' ORDER BY TOTAL_ELAPSED_TIME_S DESC') INTO :v_markdown_table;
+    CALL MONITORING.AGENT.to_markdown_table('SELECT TOP 10 * FROM TABLE(MONITORING.AGENT.GetLatestQueryHistory()) WHERE EXECUTION_STATUS = ''SUCCESS'' ORDER BY TOTAL_ELAPSED_TIME_S DESC') INTO :v_markdown_table;
  
     v_markdown_table := REGEXP_REPLACE(:v_markdown_table, ' {2,}', ' ');
 
@@ -686,7 +686,7 @@ BEGIN
         RETURN 'AI_COMPLETE() returned NULL. Does the model used exist?';
     END IF;
 
-    INSERT INTO GOVERNOR.AGENT.AGENT_FINDINGS
+    INSERT INTO MONITORING.AGENT.AGENT_FINDINGS
     (RUN_TIMESTAMP, CATEGORY, PROMPT, AI_MODEL, AI_ANALYSIS)
     SELECT
         :run_timestamp,
@@ -695,7 +695,7 @@ BEGIN
         :ai_model,
         :v_ai_analysis;
 
-    CALL GOVERNOR.AGENT.markdown_table('SELECT TOP 10 * FROM AGENT.QUERY_INSIGHTS_HISTORY WHERE run_timestamp = \'' || :run_timestamp || '\'' )
+    CALL MONITORING.AGENT.to_markdown_table('SELECT TOP 10 * FROM AGENT.QUERY_INSIGHTS_HISTORY WHERE run_timestamp = \'' || :run_timestamp || '\'' )
     INTO :v_markdown_table;
  
     v_markdown_table := REGEXP_REPLACE(:v_markdown_table, ' {2,}', ' ');
@@ -704,7 +704,7 @@ BEGIN
    
     SELECT SNOWFLAKE.CORTEX.AI_COMPLETE(:ai_model, :v_prompt) INTO :v_ai_analysis;
 
-    INSERT INTO GOVERNOR.AGENT.AGENT_FINDINGS
+    INSERT INTO MONITORING.AGENT.AGENT_FINDINGS
     (RUN_TIMESTAMP, CATEGORY, PROMPT, AI_MODEL, AI_ANALYSIS)
     SELECT
         :run_timestamp,
@@ -773,19 +773,19 @@ BEGIN
  
     v_email_body := v_email_body || '<br><p><h2>Agent Findings</h2></p><p>' || :v_table || '</p><p><br></p>';
  
-    CALL MONITORING.AGENT.html_table('SELECT * EXCLUDE (ID, RUN_TIMESTAMP) FROM AGENT.COST_SPIKES WHERE run_timestamp = ''' || :run_timestamp || '''') INTO :v_table;
+    CALL MONITORING.AGENT.to_html_table('SELECT * EXCLUDE (ID, RUN_TIMESTAMP) FROM AGENT.COST_SPIKES WHERE run_timestamp = ''' || :run_timestamp || '''') INTO :v_table;
    
     v_email_body := v_email_body || '<br><p><h2>Cost Spikes</h2></p><p>' || :v_table || '</p><br>';
  
-    CALL MONITORING.AGENT.html_table('SELECT ID AS Id, QUERY_PARAMETERIZED_HASH, NUMBER_OF_EXECUTIONS AS "#Executions", ROUND(AVG_ELAPSED_TIME_S, 1) AS "Avg Elapsed(s)", TOTAL_ELAPSED_TIME_S::INT AS "Total Elapsed(s)", WAREHOUSE_NAME AS Warehouse, MESSAGE AS Message, SUGGESTIONS AS Suggestions FROM AGENT.QUERY_INSIGHTS_HISTORY WHERE run_timestamp = ''' || :run_timestamp || '''' ) INTO :v_table;
+    CALL MONITORING.AGENT.to_html_table('SELECT ID AS Id, QUERY_PARAMETERIZED_HASH, NUMBER_OF_EXECUTIONS AS "#Executions", ROUND(AVG_ELAPSED_TIME_S, 1) AS "Avg Elapsed(s)", TOTAL_ELAPSED_TIME_S::INT AS "Total Elapsed(s)", WAREHOUSE_NAME AS Warehouse, MESSAGE AS Message, SUGGESTIONS AS Suggestions FROM AGENT.QUERY_INSIGHTS_HISTORY WHERE run_timestamp = ''' || :run_timestamp || '''' ) INTO :v_table;
  
     v_email_body := v_email_body || '<br><p><h2>Query Insights</h2></p><p>' || :v_table || '</p><br>';  
  
-    CALL MONITORING.AGENT.html_table('SELECT Id, QUERY_PARAMETERIZED_HASH, Number_of_Executions AS "#Executions", ROUND(AVG_ELAPSED_TIME_S, 1) AS Avg_Elapsed_Time_S, Total_Elapsed_Time_S::INT AS "Total Elapsed(s)", LAST_WAREHOUSE_NAME AS "Last Warehouse", LAST_QUERY_TEXT, LAST_USER_NAME, LAST_DATABASE_NAME AS "Last Database" FROM AGENT.QUERY_HISTORY_HISTORY WHERE run_timestamp = ''' || :run_timestamp || '''' ) INTO :v_table;
+    CALL MONITORING.AGENT.to_html_table('SELECT Id, QUERY_PARAMETERIZED_HASH, Number_of_Executions AS "#Executions", ROUND(AVG_ELAPSED_TIME_S, 1) AS Avg_Elapsed_Time_S, Total_Elapsed_Time_S::INT AS "Total Elapsed(s)", LAST_WAREHOUSE_NAME AS "Last Warehouse", LAST_QUERY_TEXT, LAST_USER_NAME, LAST_DATABASE_NAME AS "Last Database" FROM AGENT.QUERY_HISTORY_HISTORY WHERE run_timestamp = ''' || :run_timestamp || '''' ) INTO :v_table;
  
     v_email_body := v_email_body || '<br><p><h2>Query History</h2></p><p>' || :v_table || '</p>';
  
-    CALL MONITORING.AGENT.html_table('SELECT Id, QUERY_PARAMETERIZED_HASH, Number_of_Executions AS "#Executions", Total_Elapsed_Time_S::INT AS "Total Elapsed(s)", LAST_WAREHOUSE_NAME AS "Last Warehouse", LAST_QUERY_TEXT, LAST_USER_NAME, LAST_DATABASE_NAME AS "Last Database", ERROR_MESSAGE FROM AGENT.QUERY_HISTORY_HISTORY WHERE EXECUTION_STATUS = ''FAIL'' AND run_timestamp = ''' || :run_timestamp || ''' ORDER BY Total_Elapsed_Time_S DESC' ) INTO :v_table;
+    CALL MONITORING.AGENT.to_html_table('SELECT Id, QUERY_PARAMETERIZED_HASH, Number_of_Executions AS "#Executions", Total_Elapsed_Time_S::INT AS "Total Elapsed(s)", LAST_WAREHOUSE_NAME AS "Last Warehouse", LAST_QUERY_TEXT, LAST_USER_NAME, LAST_DATABASE_NAME AS "Last Database", ERROR_MESSAGE FROM AGENT.QUERY_HISTORY_HISTORY WHERE EXECUTION_STATUS = ''FAIL'' AND run_timestamp = ''' || :run_timestamp || ''' ORDER BY Total_Elapsed_Time_S DESC' ) INTO :v_table;
  
     v_email_body := v_email_body || '<br><p><h2 style="color: red;"">Failing Queries</h2></p><p>' || :v_table || '</p>';   
  
@@ -799,6 +799,8 @@ BEGIN
         :v_email_body,
         'text/html'
     );
+    
+    RETURN 'SUCCESS';
     
 EXCEPTION
     WHEN OTHER THEN
