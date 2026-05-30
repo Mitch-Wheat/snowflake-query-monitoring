@@ -678,7 +678,7 @@ BEGIN
  
     v_markdown_table := REGEXP_REPLACE(:v_markdown_table, ' {2,}', ' ');
 
-    v_prompt := :v_prompt_preamble || ' Here is a table of the top ten query history by elapsed time for the last 7 days, what is your advice?:\n' || :v_markdown_table; 
+    v_prompt := :v_prompt_preamble || ' Here is a markdown table of the top ten query history by elapsed time for the last 7 days, what is your advice?:\n' || :v_markdown_table; 
  
     SELECT SNOWFLAKE.CORTEX.AI_COMPLETE(:ai_model, :v_prompt) INTO :v_ai_analysis;
  
@@ -700,7 +700,7 @@ BEGIN
  
     v_markdown_table := REGEXP_REPLACE(:v_markdown_table, ' {2,}', ' ');
  
-    v_prompt := :v_prompt_preamble || 'Here is a table of Snowflake''s top ten query insights for the last 7 days, what is your advice?:\n' || :v_markdown_table;
+    v_prompt := :v_prompt_preamble || 'Here is a markdown table of Snowflake''s top ten query insights for the last 7 days, what is your advice?:\n' || :v_markdown_table;
    
     SELECT SNOWFLAKE.CORTEX.AI_COMPLETE(:ai_model, :v_prompt) INTO :v_ai_analysis;
 
